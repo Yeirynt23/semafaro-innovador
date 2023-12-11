@@ -1,0 +1,169 @@
+#include <NewPing.h>
+
+/*   Global variables   */
+int pinROJO = 4;
+int pinAMARILLO = 3;
+int pinVERDE = 2;
+int pinROJO_EXTRA = 7;  // Nuevo LED rojo
+int pinAZUL_EXTRA = 5;  // Nuevo LED azul
+int pinPEATON_ROJO = 8; // Nuevo LED para semáforo de peatones
+
+// Pines para el sensor ultrasónico en la vía principal
+#define ULTRASONIC_TRIGGER_PIN 10
+#define ULTRASONIC_ECHO_PIN 11
+
+// Pines para el nuevo sensor ultrasónico en la vía secundaria
+#define SECONDARY_ULTRASONIC_TRIGGER_PIN 12
+#define SECONDARY_ULTRASONIC_ECHO_PIN 13
+
+NewPing sonar(ULTRASONIC_TRIGGER_PIN, ULTRASONIC_ECHO_PIN);
+NewPing secondarySonar(SECONDARY_ULTRASONIC_TRIGGER_PIN, SECONDARY_ULTRASONIC_ECHO_PIN);
+
+/*   Function declaration   */
+void printLEDChange(String color, int duration);
+
+void setup()
+{
+    Serial.begin(9600);
+    pinMode(pinROJO_EXTRA, OUTPUT);
+    pinMode(pinAZUL_EXTRA, OUTPUT);
+    pinMode(pinPEATON_ROJO, OUTPUT);
+
+    // Configurar los pines de los semáforos principales
+    pinMode(pinROJO, OUTPUT);
+    pinMode(pinAMARILLO, OUTPUT);
+    pinMode(pinVERDE, OUTPUT);
+
+    // Configurar el sensor ultrasónico en la vía principal
+    pinMode(ULTRASONIC_TRIGGER_PIN, OUTPUT);
+    pinMode(ULTRASONIC_ECHO_PIN, INPUT);
+
+    // Configurar el nuevo sensor ultrasónico en la vía secundaria
+    pinMode(SECONDARY_ULTRASONIC_TRIGGER_PIN, OUTPUT);
+    pinMode(SECONDARY_ULTRASONIC_ECHO_PIN, INPUT);
+}
+
+void loop()
+{
+    // Lógica de detección de tráfico en la vía principal con el sensor ultrasónico
+    unsigned int distance = sonar.ping_cm();
+    Serial.print("Distancia en la vía principal: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+
+    // Lógica de detección de tráfico en la vía secundaria con el nuevo sensor ultrasónico
+    unsigned int secondaryDistance = secondarySonar.ping_cm();
+    Serial.print("Distancia en la vía secundaria: ");
+    Serial.print(secondaryDistance);
+    Serial.println(" cm");
+
+    if (distance > 0 && distance < 30)
+    {
+        // Hay tráfico en la vía principal, detener el semáforo de la vía secundaria
+        Serial.println("Tráfico en la vía principal. Deteniendo vía secundaria.");
+        digitalWrite(pinROJO_EXTRA, HIGH); // Detener la vía secundaria
+
+        // Mantener los LEDs de la vía principal encendidos
+        digitalWrite(pinVERDE, HIGH);
+        digitalWrite(pinAMARILLO, LOW);
+
+        // Esperar hasta que se haya permitido el cruce
+        delay(20000);  // Ajusta el tiempo según tus necesidades
+
+        // Reiniciar el semáforo de la vía secundaria
+        digitalWrite(pinROJO_EXTRA, LOW);
+
+        // Apagar los LEDs de la vía principal
+        digitalWrite(pinVERDE, LOW);
+        digitalWrite(pinAMARILLO, LOW);
+    }
+
+    // Lógica de detección de movimiento en la vía secundaria con el nuevo sensor ultrasónico
+    if (secondaryDistance > 0 && secondaryDistance < 30)
+    {
+        // Hay movimiento en la vía secundaria, detener el semáforo de la vía principal
+        Serial.println("Movimiento en la vía secundaria. Deteniendo vía principal.");
+        digitalWrite(pinROJO, HIGH); // Detener la vía principal
+
+        // Mantener los LEDs de la vía secundaria encendidos
+        digitalWrite(pinROJO_EXTRA, LOW);
+        digitalWrite(pinAZUL_EXTRA, HIGH);
+
+        // Esperar hasta que se haya permitido el cruce
+        delay(15000);  // Detener el tráfico por 15 segundos
+
+        // Reiniciar el semáforo de la vía principal
+        digitalWrite(pinROJO, LOW);
+
+        // Apagar los LEDs de la vía secundaria
+        digitalWrite(pinROJO_EXTRA, LOW);
+        digitalWrite(pinAZUL_EXTRA, LOW);
+    }
+
+    // Resto del código permanece igual...
+
+    // Realizar el ciclo normal del semáforo
+    // Encender el LED verde durante 4 segundos
+    printLEDChange("VERDE", 4000);
+    digitalWrite(pinVERDE, HIGH);
+    digitalWrite(pinROJO_EXTRA, HIGH);  // Encender el LED rojo extra mientras el LED verde está encendido
+    digitalWrite(pinPEATON_ROJO, LOW);  // Apagar el LED de peatones
+    delay(4000);
+
+    // Apagar el LED verde y el LED rojo extra
+    printLEDChange("VERDE", 0);
+    digitalWrite(pinVERDE, LOW);
+    digitalWrite(pinROJO_EXTRA, LOW);
+
+    // Parpadear el LED amarillo 5 veces antes de cambiar a él
+    for (int blinkCount = 0; blinkCount < 5; blinkCount++)
+    {
+        // Encender el LED rojo extra mientras parpadea el LED amarillo
+        digitalWrite(pinROJO_EXTRA, HIGH);
+
+        printLEDChange("AMARILLO", 500);
+        digitalWrite(pinAMARILLO, HIGH);
+        delay(500);
+        printLEDChange("AMARILLO", 500);
+        digitalWrite(pinAMARILLO, LOW);
+        delay(500);
+
+        // Apagar el LED rojo extra al final del parpadeo del LED amarillo
+        digitalWrite(pinROJO_EXTRA, LOW);
+    }
+
+    // Apagar el LED amarillo
+    printLEDChange("AMARILLO", 0);
+    digitalWrite(pinAMARILLO, LOW);
+
+    // Encender el LED rojo durante 6 segundos
+    printLEDChange("ROJO", 6000);
+    digitalWrite(pinROJO, HIGH);
+
+    digitalWrite(pinAZUL_EXTRA, HIGH);  // Encender el LED azul extra mientras el LED rojo está encendido
+    delay(6000);
+    digitalWrite(pinAZUL_EXTRA, LOW);
+
+    // Hacer parpadear el LED de peatones antes de cambiar
+    for (int blinkCount = 0; blinkCount < 5; blinkCount++)
+    {
+        digitalWrite(pinPEATON_ROJO, HIGH);
+        delay(500);
+        digitalWrite(pinPEATON_ROJO, LOW);
+        delay(500);
+    }
+
+    // Apagar el LED rojo y el LED de peatones antes de apagar el LED azul extra
+    digitalWrite(pinROJO, LOW);
+    digitalWrite(pinPEATON_ROJO, LOW);
+    digitalWrite(pinAZUL_EXTRA, LOW);
+}
+
+void printLEDChange(String color, int duration)
+{
+    Serial.print("Cambiando a LED ");
+    Serial.print(color);
+    Serial.print(" durante ");
+    Serial.print(duration);
+    Serial.println(" ms");
+}
