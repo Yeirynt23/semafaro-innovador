@@ -1,0 +1,77 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <ESP8266WiFi.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
+const char* ssid = "TuSSID";     // Cambia por tu nombre de red WiFi
+const char* password = "TuClave"; // Cambia por tu contraseña de red WiFi
+
+const long utcOffsetInSeconds = -14400; // Offset de tiempo para la República Dominicana (UTC-4)
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+
+  // Conectar al WiFi
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println("");
+
+  Serial.println("Conectado al WiFi");
+
+  // Inicializar el cliente NTP
+  timeClient.begin();
+}
+
+void loop() {
+  // Actualizar el cliente NTP
+  timeClient.update();
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Fecha: ");
+  printDate();
+
+  lcd.setCursor(0, 1);
+  lcd.print("Hora: ");
+  printTime();
+
+  delay(1000);
+}
+
+void printDate() {
+  time_t rawTime = timeClient.getEpochTime();
+  struct tm *timeInfo = localtime(&rawTime);
+
+  lcd.print(timeInfo->tm_year + 1900);  // Añade 1900 al año
+  lcd.print("-");
+  printDigits(timeInfo->tm_mon + 1);  // tm_mon inicia desde 0
+  lcd.print("-");
+  printDigits(timeInfo->tm_mday);
+}
+
+void printTime() {
+  time_t rawTime = timeClient.getEpochTime();
+  struct tm *timeInfo = localtime(&rawTime);
+
+  printDigits(timeInfo->tm_hour);
+  lcd.print(":");
+  printDigits(timeInfo->tm_min);
+  lcd.print(":");
+  printDigits(timeInfo->tm_sec);
+}
+
+void printDigits(int digits) {
+  // Imprime los dígitos con un cero inicial si es necesario
+  lcd.print(digits < 10 ? "0" : "");
+  lcd.print(digits);
+}
